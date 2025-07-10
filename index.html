@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Juego de Regresión Lineal Interactivo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .main-container {
+            display: flex;
+            align-items: flex-start;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .canvas-container {
+            position: relative;
+        }
+        
+        canvas {
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            cursor: pointer;
+        }
+        
+        .axis-label {
+            position: absolute;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .x-label {
+            bottom: -25px;
+        }
+        
+        .y-label {
+            left: -25px;
+            transform: rotate(-90deg);
+            transform-origin: left top;
+        }
+        
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        .stats-panel {
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            width: 200px;
+        }
+        
+        .sum-of-squares {
+            color: blue;
+            font-size: 24px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        
+        .accuracy-indicator {
+            margin-top: 30px;
+            text-align: center;
+        }
+        
+        .target-circle {
+            width: 150px;
+            height: 150px;
+            border: 3px solid #333;
+            border-radius: 50%;
+            position: relative;
+            margin: 0 auto;
+            background-color: #f9f9f9;
+            background-image: 
+                radial-gradient(circle, white 0%, white 20%, #333 20%, #333 21%, white 21%, white 40%, #333 40%, #333 41%, white 41%, white 60%, #333 60%, #333 61%, white 61%, white 80%, #333 80%, #333 81%, white 81%);
+        }
+        
+        .center-dot {
+            width: 10px;
+            height: 10px;
+            background-color: red;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 2;
+        }
+        
+        .user-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #4CAF50;
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            transition: all 0.5s ease;
+            z-index: 3;
+        }
+        
+        .feedback-text {
+            margin-top: 10px;
+            font-weight: bold;
+            font-size: 16px;
+            min-height: 40px;
+        }
+        
+        .perfect {
+            color: #4CAF50;
+        }
+        
+        .good {
+            color: #8BC34A;
+        }
+        
+        .average {
+            color: #FFC107;
+        }
+        
+        .poor {
+            color: #FF9800;
+        }
+        
+        .bad {
+            color: #F44336;
+        }
+        
+        .progress-container {
+            width: 100%;
+            height: 10px;
+            background-color: #e0e0e0;
+            border-radius: 5px;
+            margin-top: 20px;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background-color: #4CAF50;
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+        
+        .streak-counter {
+            font-size: 18px;
+            margin-top: 10px;
+            color: #2196F3;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Juego de Regresión Lineal</h1>
+    
+    <div class="main-container">
+        <div class="canvas-container">
+            <canvas id="coordinatePlane" width="500" height="500"></canvas>
+            <div class="axis-label x-label">Eje X</div>
+            <div class="axis-label y-label">Eje Y</div>
+        </div>
+        
+        <div class="stats-panel">
+    <h3>Estadísticas</h3>
+    <div>Suma de cuadrados:</div>
+    <div class="sum-of-squares" id="sumOfSquares">0</div>
+    
+    <div class="progress-container">
+        <div class="progress-bar" id="progressBar"></div>
+    </div>
+    
+    <div class="streak-counter" id="streakCounter">Racha: 0</div>
+    
+    <div class="accuracy-indicator">
+        <div>¡Ajusta la línea!</div>
+        <div class="target-circle">
+            <div class="center-dot"></div>
+            <div id="targetDotsContainer"></div>
+        </div>
+        <div class="feedback-text" id="feedbackText">Mueve la línea verde</div>
+    </div>
+</div>
+    </div>
+    
+    <button id="addPointsBtn">Generar Nuevos Puntos</button>
+    <script>
+        const canvas = document.getElementById('coordinatePlane');
+        const ctx = canvas.getContext('2d');
+        const addPointsBtn = document.getElementById('addPointsBtn');
+        const sumOfSquaresElement = document.getElementById('sumOfSquares');
+        const feedbackText = document.getElementById('feedbackText');
+        const progressBar = document.getElementById('progressBar');
+        const streakCounter = document.getElementById('streakCounter');
+        const targetDotsContainer = document.getElementById('targetDotsContainer');
+        
+        // Configuración
+        const padding = 50;
+        const axisColor = '#333';
+        const labelColor = '#555';
+        const maxValue = 10;
+        const step = 2;
+        let points = [];
+        let bestFitLine = null;
+        let currentStreak = 0;
+        let bestSumOfSquares = Infinity;
+        let lastAccuracyRatio = 0;
+        let dotHistory = [];
+        
+        // Línea verde interactiva
+        let greenLine = {
+            x1: padding,
+            y1: canvas.height / 2,
+            x2: canvas.width - padding,
+            y2: canvas.height / 2,
+            selectedPoint: null // 'p1', 'p2', 'mid'
+        };
+        
+        // Calcular línea de mejor ajuste (mínimos cuadrados)
+        function calculateBestFitLine() {
+            if (points.length < 2) return null;
+            
+            const n = points.length;
+            let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+            
+            points.forEach(point => {
+                sumX += point.valueX;
+                sumY += point.valueY;
+                sumXY += point.valueX * point.valueY;
+                sumXX += point.valueX * point.valueX;
+            });
+            
+            const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+            const intercept = (sumY - slope * sumX) / n;
+            
+            // Convertir a coordenadas de canvas
+            const x1 = padding;
+            const y1 = canvas.height - padding - (intercept + slope * 0) * (canvas.height - 2 * padding) / maxValue;
+            const x2 = canvas.width - padding;
+            const y2 = canvas.height - padding - (intercept + slope * maxValue) * (canvas.height - 2 * padding) / maxValue;
+            
+            return { x1, y1, x2, y2, slope, intercept };
+        }
+        
+// Función CORREGIDA para calcular suma de cuadrados
+function calculateSumOfSquares() {
+    if (points.length === 0) return 0;
+    
+    // Calcular pendiente (b) e intercepto (a) de la línea verde
+    // Usando valores reales, no píxeles
+    const x1_val = maxValue * (greenLine.x1 - padding) / (canvas.width - 2*padding);
+    const y1_val = maxValue - maxValue * (greenLine.y1 - padding) / (canvas.height - 2*padding);
+    const x2_val = maxValue * (greenLine.x2 - padding) / (canvas.width - 2*padding);
+    const y2_val = maxValue - maxValue * (greenLine.y2 - padding) / (canvas.height - 2*padding);
+    
+    const pendiente = (y2_val - y1_val) / (x2_val - x1_val);
+    const intercepto = y1_val - pendiente * x1_val;
+    
+    let sum = 0;
+    points.forEach(point => {
+        const y_predicho = intercepto + pendiente * point.valueX;
+        const error = point.valueY - y_predicho;
+        sum += error * error;
+    });
+    
+    return sum;
+}
+        
+        // Función corregida para actualizar el indicador de precisión
+// Función corregida para actualizar el indicador de precisión
+function updateAccuracyIndicator() {
+    if (!bestFitLine || points.length < 2) return;
+    
+    const currentSum = calculateSumOfSquares();
+    const bestSum = bestSumOfSquares;
+    
+    // Cálculo mejorado del ratio de precisión
+    let accuracyRatio;
+    if (bestSum === 0) {
+        accuracyRatio = 1;
+    } else {
+        // Ratio basado en qué tan cerca está currentSum de bestSum
+        accuracyRatio = bestSum / currentSum;
+        // Limitar a 1 como máximo
+        accuracyRatio = Math.min(1, accuracyRatio);
+    }
+    
+    lastAccuracyRatio = accuracyRatio;
+    
+    // Actualizar barra de progreso
+    progressBar.style.width = `${accuracyRatio * 100}%`;
+    
+    // Umbrales ajustados para los mensajes y racha
+    if (accuracyRatio > 0.99) {
+        feedbackText.textContent = "¡Perfecto! 🤩";
+        feedbackText.className = "feedback-text perfect";
+        currentStreak++;
+        
+        // Resaltar el punto verde en el centro
+        const dots = document.querySelectorAll('.user-dot');
+        if (dots.length > 0) {
+            const lastDot = dots[dots.length-1];
+            lastDot.style.left = '50%';
+            lastDot.style.top = '50%';
+            lastDot.style.transform = 'translate(-50%, -50%) scale(1.5)';
+            lastDot.style.backgroundColor = "#00FF00";
+        }
+    } else if (accuracyRatio > 0.75) {
+        feedbackText.textContent = "¡Excelente! 😊";
+        feedbackText.className = "feedback-text good";
+        currentStreak++;
+    } else if (accuracyRatio > 0.5) {
+        feedbackText.textContent = "Buen trabajo! 👍";
+        feedbackText.className = "feedback-text average";
+        // No reiniciamos la racha aquí, solo no la incrementamos
+    } else if (accuracyRatio > 0.25) {
+        feedbackText.textContent = "Sigue intentando 💪";
+        feedbackText.className = "feedback-text poor";
+        currentStreak = 0;
+    } else {
+        feedbackText.textContent = "Lejos del óptimo 😟";
+        feedbackText.className = "feedback-text bad";
+        currentStreak = 0;
+    }
+    
+    streakCounter.textContent = `Racha: ${currentStreak}`;
+    
+    // Actualizar color de la barra de progreso
+    updateProgressBarColor(accuracyRatio);
+}
+
+// Función auxiliar para actualizar el color de la barra
+function updateProgressBarColor(ratio) {
+    if (ratio > 0.8) {
+        progressBar.style.backgroundColor = "#4CAF50";
+    } else if (ratio > 0.6) {
+        progressBar.style.backgroundColor = "#8BC34A";
+    } else if (ratio > 0.4) {
+        progressBar.style.backgroundColor = "#FFC107";
+    } else if (ratio > 0.2) {
+        progressBar.style.backgroundColor = "#FF9800";
+    } else {
+        progressBar.style.backgroundColor = "#F44336";
+    }
+}
+        
+        // Agregar un nuevo punto a la diana cuando se suelta la línea
+        function addTargetDot() {
+    if (!bestFitLine || points.length < 2) return;
+    
+    const accuracyRatio = lastAccuracyRatio;
+    const maxDistance = 70;
+    
+    const dot = document.createElement('div');
+    dot.className = 'user-dot';
+    
+    if (accuracyRatio > 0.98) {
+        dot.style.left = '50%';
+        dot.style.top = '50%';
+        dot.style.backgroundColor = "red";
+    } else {
+        const angle = Math.random() * Math.PI * 2;
+        const distance = maxDistance * (1 - accuracyRatio);
+        dot.style.left = `calc(50% + ${Math.cos(angle) * distance}px)`;
+        dot.style.top = `calc(50% + ${Math.sin(angle) * distance}px)`;
+    }
+    
+    targetDotsContainer.appendChild(dot);
+    
+    // Limitar historial
+    if (dotHistory.length >= 20) {
+        targetDotsContainer.removeChild(dotHistory.shift());
+    }
+    dotHistory.push(dot);
+}
+        
+        // Calcular suma de cuadrados para la línea de mejor ajuste
+        function calculateBestFitSumOfSquares() {
+            if (!bestFitLine || points.length === 0) return 0;
+            
+            const slope = bestFitLine.slope;
+            const intercept = bestFitLine.intercept;
+            
+            let sum = 0;
+            
+            points.forEach(point => {
+                // Convertir coordenadas de canvas a valores de datos
+                const dataX = (point.x - padding) * maxValue / (canvas.width - 2 * padding);
+                const dataY = maxValue - (point.y - padding) * maxValue / (canvas.height - 2 * padding);
+                
+                // Calcular valor y predicho por la línea de mejor ajuste
+                const predictedY = slope * dataX + intercept;
+                // Calcular diferencia al cuadrado
+                const error = dataY - predictedY;
+                sum += error * error;
+            });
+            
+            return sum;
+        }
+        
+        // Dibujar el plano cartesiano
+        function drawCoordinatePlane() {
+            // Limpiar canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Dibujar ejes
+            ctx.beginPath();
+            ctx.strokeStyle = axisColor;
+            ctx.lineWidth = 2;
+            
+            // Eje Y (vertical)
+            ctx.moveTo(padding, canvas.height - padding);
+            ctx.lineTo(padding, padding);
+            
+            // Eje X (horizontal)
+            ctx.moveTo(padding, canvas.height - padding);
+            ctx.lineTo(canvas.width - padding, canvas.height - padding);
+            ctx.stroke();
+            
+            // Marcas y etiquetas
+            const xLength = canvas.width - 2 * padding;
+            const yLength = canvas.height - 2 * padding;
+            
+            ctx.font = '12px Arial';
+            ctx.fillStyle = labelColor;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            
+            // Marcas en el eje X
+            for (let i = 0; i <= maxValue; i += step) {
+                const x = padding + (i / maxValue) * xLength;
+                
+                // Marca en el eje
+                ctx.beginPath();
+                ctx.moveTo(x, canvas.height - padding);
+                ctx.lineTo(x, canvas.height - padding + 5);
+                ctx.strokeStyle = axisColor;
+                ctx.stroke();
+                
+                // Etiqueta
+                ctx.fillText(i.toString(), x, canvas.height - padding + 10);
+            }
+            
+            // Marcas en el eje Y
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            
+            for (let i = 0; i <= maxValue; i += step) {
+                const y = canvas.height - padding - (i / maxValue) * yLength;
+                
+                // Marca en el eje
+                ctx.beginPath();
+                ctx.strokeStyle = axisColor;
+                ctx.moveTo(padding, y);
+                ctx.lineTo(padding - 5, y);
+                ctx.stroke();
+                
+                // Etiqueta
+                ctx.fillText(i.toString(), padding - 10, y);
+            }
+            
+            // Dibujar línea verde
+            drawGreenLine();
+            
+            // Dibujar puntos si existen
+            drawPoints();
+            
+            // Actualizar suma de cuadrados
+            const sum = calculateSumOfSquares();
+            sumOfSquaresElement.textContent = sum.toFixed(2);
+            
+            
+            // Actualizar indicador de precisión
+            updateAccuracyIndicator();
+        }
+        
+        // Dibujar línea verde con puntos de control
+        function drawGreenLine() {
+            // Dibujar la línea principal
+            ctx.beginPath();
+            ctx.strokeStyle = 'green';
+            ctx.lineWidth = 3;
+            ctx.moveTo(greenLine.x1, greenLine.y1);
+            ctx.lineTo(greenLine.x2, greenLine.y2);
+            ctx.stroke();
+            
+            // Calcular punto medio
+            const midX = (greenLine.x1 + greenLine.x2) / 2;
+            const midY = (greenLine.y1 + greenLine.y2) / 2;
+            
+            // Dibujar puntos de control (siempre visibles)
+            ctx.fillStyle = 'green';
+            // Punto izquierdo
+            ctx.beginPath();
+            ctx.arc(greenLine.x1, greenLine.y1, 8, 0, Math.PI * 2);
+            ctx.fill();
+            // Punto derecho
+            ctx.beginPath();
+            ctx.arc(greenLine.x2, greenLine.y2, 8, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Punto medio (verde)
+            ctx.fillStyle = '#4CAF50';
+            ctx.beginPath();
+            ctx.arc(midX, midY, 10, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+
+// Función para agregar puntos aleatorios (modificada)
+        function addRandomPoints() {
+            points = [];
+            const numPoints = Math.floor(Math.random() * 6) + 10; // Entre 10 y 15 puntos
+            const correlation = Math.random() > 0.5 ? 1 : -1; // 1 para positiva, -1 para negativa
+            
+            // Generar puntos con correlación
+            for (let i = 0; i < numPoints; i++) {
+                const x = 0.5 + Math.random() * 9; // Entre 0.5 y 9.5
+                const y = 0.5 + Math.random() * 9; // Base aleatoria
+                
+                // Aplicar correlación
+                const correlatedY = 5 + correlation * (x - 5) + (Math.random() * 2 - 1);
+                const finalY = Math.max(0.5, Math.min(9.5, correlatedY)); // Mantener dentro del rango
+                
+                points.push({
+                    x: padding + (x / maxValue) * (canvas.width - 2 * padding),
+                    y: canvas.height - padding - (finalY / maxValue) * (canvas.height - 2 * padding),
+                    valueX: x,
+                    valueY: finalY
+                });
+            }
+            
+            // Calcular línea de mejor ajuste para los nuevos puntos
+            bestFitLine = calculateBestFitLine();
+            bestSumOfSquares = calculateBestFitSumOfSquares();
+            currentStreak = 0;
+            
+            // Limpiar el historial de puntos al generar nuevos puntos
+            dotHistory.forEach(dot => targetDotsContainer.removeChild(dot));
+            dotHistory = [];
+
+            drawPoints(); // Añadir esta línea
+            drawCoordinatePlane();
+        }
+
+            
+            
+
+        // Modificación en el evento mousemove para el punto derecho
+        canvas.addEventListener('mousemove', (e) => {
+            if (greenLine.selectedPoint) {
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                // Limitar movimiento dentro del área del gráfico
+                const clampedX = Math.max(padding, Math.min(canvas.width - padding, x));
+                const clampedY = Math.max(padding, Math.min(canvas.height - padding, y));
+                
+                // Mover según el punto seleccionado
+                if (greenLine.selectedPoint === 'p1') {
+                    greenLine.x1 = clampedX;
+                    greenLine.y1 = clampedY;
+                } else if (greenLine.selectedPoint === 'p2') {
+                    greenLine.x2 = clampedX;
+                    greenLine.y2 = clampedY;
+                } else if (greenLine.selectedPoint === 'mid') {
+                    const dx = clampedX - (greenLine.x1 + greenLine.x2) / 2;
+                    const dy = clampedY - (greenLine.y1 + greenLine.y2) / 2;
+                    greenLine.x1 += dx;
+                    greenLine.y1 += dy;
+                    greenLine.x2 += dx;
+                    greenLine.y2 += dy;
+                }
+                
+                drawCoordinatePlane();
+            }
+        });
+        
+        // Función para dibujar puntos
+        function drawPoints() {
+            ctx.fillStyle = 'red';
+            points.forEach(point => {
+                ctx.beginPath();
+                ctx.arc(point.x, point.y, 5, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+	
+        
+        // Manejo de eventos para la línea verde
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            const midX = (greenLine.x1 + greenLine.x2) / 2;
+            const midY = (greenLine.y1 + greenLine.y2) / 2;
+            
+            // Verificar clic en puntos de control (con radio de 15px)
+            if (distance(x, y, greenLine.x1, greenLine.y1) < 15) {
+                greenLine.selectedPoint = 'p1';
+            } else if (distance(x, y, greenLine.x2, greenLine.y2) < 15) {
+                greenLine.selectedPoint = 'p2';
+            } else if (distance(x, y, midX, midY) < 15) {
+                greenLine.selectedPoint = 'mid';
+            }
+            
+            if (greenLine.selectedPoint) {
+                drawCoordinatePlane();
+            }
+        });
+        
+        canvas.addEventListener('mousemove', (e) => {
+    if (greenLine.selectedPoint) {
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        const clampedX = Math.max(padding, Math.min(canvas.width - padding, x));
+        const clampedY = Math.max(padding, Math.min(canvas.height - padding, y));
+        
+        if (greenLine.selectedPoint === 'p1') {
+            greenLine.x1 = clampedX;
+            greenLine.y1 = clampedY;
+        } else if (greenLine.selectedPoint === 'p2') {
+            greenLine.x2 = clampedX;
+            greenLine.y2 = clampedY;
+        } else if (greenLine.selectedPoint === 'mid') {
+            const dx = clampedX - (greenLine.x1 + greenLine.x2) / 2;
+            const dy = clampedY - (greenLine.y1 + greenLine.y2) / 2;
+            greenLine.x1 += dx;
+            greenLine.y1 += dy;
+            greenLine.x2 += dx;
+            greenLine.y2 += dy;
+        }
+        
+        drawCoordinatePlane();
+    }
+});
+        
+        canvas.addEventListener('mouseup', () => {
+            if (greenLine.selectedPoint) {
+                addTargetDot(); // Agregar un nuevo punto a la diana cuando se suelta la línea
+            }
+            greenLine.selectedPoint = null;
+        });
+        
+        canvas.addEventListener('mouseleave', () => {
+            if (greenLine.selectedPoint) {
+                addTargetDot(); // Agregar un nuevo punto a la diana cuando se suelta la línea
+            }
+            greenLine.selectedPoint = null;
+            drawCoordinatePlane();
+        });
+        
+        // Función de distancia
+        function distance(x1, y1, x2, y2) {
+            return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+        }
+        
+        // Evento del botón
+        addPointsBtn.addEventListener('click', addRandomPoints);
+        
+        // Dibujar al cargar la página (con puntos iniciales)
+        window.onload = function() {
+    addRandomPoints();
+    drawCoordinatePlane();
+    drawGreenLine();
+    drawPoints(); // Añadir esta línea
+};
+    </script>
+</body>
+</html>
